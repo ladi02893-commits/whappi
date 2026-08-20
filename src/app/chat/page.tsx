@@ -12,5 +12,6 @@ export default async function ChatPage() {
   const { data, error } = await client.database.rpc('ensure_profile').single()
   if (error || !data)
     throw new Error('Your WHAPPI profile could not be prepared.')
-  return <ChatShell key={data.id} initialProfile={data as Profile} />
+  const profile = data as Profile
+  return <ChatShell key={profile.id} initialProfile={profile} />
 }
