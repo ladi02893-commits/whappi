@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation'
-import { getInsForgeServerClient } from '@/lib/insforge/server'
+import { getCurrentUser } from '@/lib/auth'
 
 export default async function HomePage() {
-  const client = await getInsForgeServerClient()
-  const { data } = await client.auth.getCurrentUser()
-  redirect(data?.user ? '/chat' : '/login')
+  const user = await getCurrentUser()
+  redirect(user ? '/chat' : '/login')
 }

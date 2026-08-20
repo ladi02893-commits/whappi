@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { getInsForgeBrowserClient } from '@/lib/insforge/client'
+import { updateProfile } from '@/actions/chat'
 import { profileSchema } from '@/lib/validation'
 import type { Profile } from '@/types/database'
 
@@ -40,28 +40,19 @@ export function ProfileDialog({
   })
 
   const submit = form.handleSubmit(async (values) => {
-    const { data, error } = await getInsForgeBrowserClient()
-      .database.from('profiles')
-      .update({
+    try {
+      const updatedProfile = await updateProfile(profile.id, {
         ...values,
         avatar_url: values.avatar_url || null,
         bio: values.bio || null,
       })
-      .eq('id', profile.id)
-      .select(
-        'id, username, display_name, avatar_url, bio, created_at, updated_at',
-      )
-      .single()
-    if (error) {
+      onUpdated(updatedProfile)
+      toast.success('Your profile has been saved.')
+    } catch (error) {
       toast.error(
-        error.message.includes('unique')
-          ? 'That username is already taken.'
-          : 'Profile could not be saved.',
+        'Profile could not be saved. Your username might be taken by someone else.',
       )
-      return
     }
-    onUpdated(data as Profile)
-    toast.success('Profile updated')
   })
 
   return (

@@ -39,7 +39,6 @@ import {
   sendMessage,
   uploadAttachment,
 } from '@/lib/chat-api'
-import { getInsForgeBrowserClient } from '@/lib/insforge/client'
 import { formatTime, safeExternalUrl, generateId } from '@/lib/utils'
 import type {
   Conversation,
@@ -118,85 +117,30 @@ export function ConversationPanel({
     }
   }, [conversation.id, scrollBottom])
 
+  // Use polling for new messages since we migrated away from InsForge Realtime
   useEffect(() => {
-    const insforge = getInsForgeBrowserClient()
-    const channel = `conversation:${conversation.id}`
     let mounted = true
-    const onConnect = () => {
-      if (mounted) setConnection('connected')
-    }
-    const onDisconnect = () => {
-      if (mounted) setConnection(navigator.onLine ? 'connecting' : 'offline')
-    }
-    const onNewMessage = async (payload: {
-      id?: string
-      meta?: { channel?: string }
-    }) => {
-      if (!mounted || payload.meta?.channel !== channel || !payload.id) return
+    const pollMessages = async () => {
+      if (!mounted || document.visibilityState !== 'visible') return
       try {
-        const item = await loadMessage(payload.id)
-        if (
-          !item ||
-          new Date(item.expires_at ?? '2999-01-01').getTime() <= Date.now()
-        )
-          return
-        setMessages((current) =>
-          current.some((message) => message.id === item.id)
-            ? current.map((message) =>
-                message.id === item.id ? item : message,
-              )
-            : [...current, item],
-        )
-        if (nearBottom.current)
-          requestAnimationFrame(() => scrollBottom('smooth'))
-      } catch {
-        /* a late or already-expired event is intentionally ignored */
+        const latestMessages = await loadMessages(conversation.id)
+        if (mounted) {
+          setMessages(latestMessages)
+          setConnection('connected')
+        }
+      } catch (err) {
+        if (mounted) setConnection(navigator.onLine ? 'connecting' : 'offline')
       }
     }
-    const onExpired = (payload: {
-      id?: string
-      meta?: { channel?: string }
-    }) => {
-      if (payload.meta?.channel === channel && payload.id)
-        setMessages((current) =>
-          current.filter((message) => message.id !== payload.id),
-        )
-    }
-    const onRetention = (payload: {
-      retention_mode?: RetentionMode
-      retention_seconds?: number | null
-      meta?: { channel?: string }
-    }) => {
-      if (payload.meta?.channel !== channel || !payload.retention_mode) return
-      onConversationChanged({
-        ...conversation,
-        retention_mode: payload.retention_mode,
-        retention_seconds: payload.retention_seconds ?? null,
-      })
-    }
-    insforge.realtime.on('connect', onConnect)
-    insforge.realtime.on('disconnect', onDisconnect)
-    insforge.realtime.on('new_message', onNewMessage)
-    insforge.realtime.on('message_expired', onExpired)
-    insforge.realtime.on('message_deleted', onExpired)
-    insforge.realtime.on('retention_changed', onRetention)
-    void insforge.realtime
-      .connect()
-      .then(() => insforge.realtime.subscribe(channel))
-      .then((result) => {
-        if (mounted) setConnection(result.ok ? 'connected' : 'offline')
-      })
+    
+    // Initial fetch handled elsewhere, just poll periodically
+    const interval = setInterval(pollMessages, 3000)
+    
     return () => {
       mounted = false
-      insforge.realtime.off('connect', onConnect)
-      insforge.realtime.off('disconnect', onDisconnect)
-      insforge.realtime.off('new_message', onNewMessage)
-      insforge.realtime.off('message_expired', onExpired)
-      insforge.realtime.off('message_deleted', onExpired)
-      insforge.realtime.off('retention_changed', onRetention)
-      insforge.realtime.unsubscribe(channel)
+      clearInterval(interval)
     }
-  }, [conversation, onConversationChanged, scrollBottom])
+  }, [conversation.id])
 
   useEffect(() => {
     const container = scrollRef.current

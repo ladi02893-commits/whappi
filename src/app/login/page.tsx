@@ -7,12 +7,11 @@ import {
 } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { AuthPanel } from '@/components/auth/auth-panel'
-import { getInsForgeServerClient } from '@/lib/insforge/server'
+import { getCurrentUser } from '@/lib/auth'
 
 export default async function LoginPage() {
-  const client = await getInsForgeServerClient()
-  const { data } = await client.auth.getCurrentUser()
-  if (data?.user) redirect('/chat')
+  const user = await getCurrentUser()
+  if (user) redirect('/chat')
 
   return (
     <main className="min-h-dvh overflow-hidden bg-background">

@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { getInsForgeBrowserClient } from '@/lib/insforge/client'
 import {
   httpUrlSchema,
   randomStorageName,
@@ -19,57 +18,12 @@ import type {
   RetentionMode,
 } from '@/types/database'
 
-const client = () => getInsForgeBrowserClient()
+import * as chatActions from '@/actions/chat'
+
 const recordIdSchema = z.string().uuid()
 
-function throwIfError(
-  error: { message?: string } | null,
-  fallback: string,
-): void {
-  if (error) throw new Error(error.message || fallback)
-}
-
 export async function loadSocialState() {
-  const [
-    profilesResult,
-    requestsResult,
-    friendshipsResult,
-    conversationsResult,
-  ] = await Promise.all([
-    client()
-      .database.from('profiles')
-      .select(
-        'id, username, display_name, avatar_url, bio, created_at, updated_at',
-      )
-      .limit(250),
-    client()
-      .database.from('friend_requests')
-      .select('id, sender_id, receiver_id, status, created_at, responded_at')
-      .order('created_at', { ascending: false })
-      .limit(250),
-    client()
-      .database.from('friendships')
-      .select('id, user_low_id, user_high_id, created_at')
-      .order('created_at', { ascending: false })
-      .limit(250),
-    client()
-      .database.from('conversations')
-      .select(
-        'id, type, user_low_id, user_high_id, retention_mode, retention_seconds, created_by, created_at, updated_at',
-      )
-      .order('updated_at', { ascending: false })
-      .limit(150),
-  ])
-  throwIfError(profilesResult.error, 'Could not load profiles')
-  throwIfError(requestsResult.error, 'Could not load friend requests')
-  throwIfError(friendshipsResult.error, 'Could not load friends')
-  throwIfError(conversationsResult.error, 'Could not load conversations')
-  return {
-    profiles: (profilesResult.data ?? []) as Profile[],
-    requests: (requestsResult.data ?? []) as FriendRequest[],
-    friendships: (friendshipsResult.data ?? []) as Friendship[],
-    conversations: (conversationsResult.data ?? []) as Conversation[],
-  }
+  return chatActions.loadSocialState();
 }
 
 export async function searchProfiles(
@@ -77,96 +31,44 @@ export async function searchProfiles(
   page: number,
   pageSize = 20,
 ): Promise<Profile[]> {
-  const safeQuery = query
-    .trim()
-    .slice(0, 80)
-    .replace(/[(),%]/g, '')
-  let builder = client()
-    .database.from('profiles')
-    .select(
-      'id, username, display_name, avatar_url, bio, created_at, updated_at',
-    )
-    .order('display_name')
-    .range(page * pageSize, page * pageSize + pageSize - 1)
-  if (safeQuery)
-    builder = builder.or(
-      `display_name.ilike.%${safeQuery}%,username.ilike.%${safeQuery}%`,
-    )
-  const { data, error } = await builder
-  throwIfError(error, 'Could not search people')
-  return (data ?? []) as Profile[]
+  return chatActions.searchProfiles(query, page, pageSize);
 }
 
 export async function sendFriendRequest(receiverId: string) {
-  const { error } = await client().database.rpc('send_friend_request', {
-    p_receiver_id: receiverId,
-  })
-  throwIfError(error, 'Could not send friend request')
+  return chatActions.sendFriendRequest(receiverId);
 }
 
 export async function respondToFriendRequest(
   requestId: string,
   action: 'accepted' | 'rejected',
 ) {
-  const { error } = await client().database.rpc('respond_friend_request', {
-    p_request_id: requestId,
-    p_action: action,
-  })
-  throwIfError(error, 'Could not update friend request')
+  return chatActions.respondToFriendRequest(requestId, action);
 }
 
 export async function cancelFriendRequest(requestId: string) {
-  const { error } = await client().database.rpc('cancel_friend_request', {
-    p_request_id: requestId,
-  })
-  throwIfError(error, 'Could not cancel friend request')
+  return chatActions.cancelFriendRequest(requestId);
 }
 
 export async function removeFriend(friendId: string) {
-  const { error } = await client().database.rpc('unfriend', {
-    p_friend_id: friendId,
-  })
-  throwIfError(error, 'Could not remove friend')
+  return chatActions.removeFriend(friendId);
 }
 
 export async function startConversation(
   friendId: string,
 ): Promise<Conversation> {
-  const { data, error } = await client()
-    .database.rpc('create_or_get_conversation', { p_friend_id: friendId })
-    .single()
-  throwIfError(error, 'Could not start conversation')
-  return data as Conversation
+  return chatActions.startConversation(friendId);
 }
-
-const messageColumns = `id, conversation_id, sender_id, message_type, text_content, link_url, latitude, longitude, location_label, retention_mode, retention_seconds, is_system, created_at, expires_at, deleted_at, message_attachments(id, message_id, bucket, storage_key, url, original_name, mime_type, size_bytes, duration_seconds, width, height, created_at), message_receipts(message_id, user_id, viewed_at)`
 
 export async function loadMessages(
   conversationId: string,
   before?: string,
-  pageSize = 40,
+  pageSize = 50,
 ): Promise<Message[]> {
-  let builder = client()
-    .database.from('messages')
-    .select(messageColumns)
-    .eq('conversation_id', conversationId)
-  if (before) builder = builder.lt('created_at', before)
-  const { data, error } = await builder
-    .order('created_at', { ascending: false })
-    .order('id', { ascending: false })
-    .limit(pageSize)
-  throwIfError(error, 'Could not load messages')
-  return ((data ?? []) as unknown as Message[]).reverse()
+  return chatActions.loadMessages(conversationId, before, pageSize);
 }
 
 export async function loadMessage(messageId: string): Promise<Message | null> {
-  const { data, error } = await client()
-    .database.from('messages')
-    .select(messageColumns)
-    .eq('id', messageId)
-    .maybeSingle()
-  throwIfError(error, 'Could not load message')
-  return data as unknown as Message | null
+  return chatActions.loadMessage(messageId);
 }
 
 type SendPayload = {
@@ -182,41 +84,7 @@ type SendPayload = {
 }
 
 export async function sendMessage(payload: SendPayload): Promise<Message> {
-  const { data, error } = await client()
-    .database.rpc('send_message', {
-      p_conversation_id: payload.conversationId,
-      p_message_id: payload.messageId,
-      p_message_type: payload.type,
-      p_text_content: payload.text ?? null,
-      p_link_url: payload.link ?? null,
-      p_latitude: payload.latitude ?? null,
-      p_longitude: payload.longitude ?? null,
-      p_location_label: payload.locationLabel ?? null,
-      p_attachment: payload.attachment ?? null,
-    })
-    .single()
-  if (error) {
-    console.error('[WHAPPI] sendMessage error:', JSON.stringify(error, null, 2))
-    console.error('[WHAPPI] sendMessage payload:', JSON.stringify({
-      conversationId: payload.conversationId,
-      messageId: payload.messageId,
-      type: payload.type,
-    }))
-  }
-  throwIfError(error, 'Message could not be sent')
-  return {
-    ...(data as Message),
-    message_attachments: payload.attachment
-      ? [
-          {
-            ...payload.attachment,
-            id: generateId(),
-            message_id: payload.messageId,
-            created_at: new Date().toISOString(),
-          },
-        ]
-      : [],
-  }
+  return chatActions.sendMessageRpc(payload);
 }
 
 export async function uploadAttachment(
@@ -228,26 +96,43 @@ export async function uploadAttachment(
   const kind = attachment.kind as FileKind
   const validation = validateFile(attachment.file, kind)
   if (!validation.valid) throw new Error(validation.message)
+  
   const bucket = kind === 'document' ? 'chat-documents' : 'chat-media'
   const storageKey = `conversations/${conversationId}/${messageId}/${randomStorageName(attachment.file)}`
   onProgress(12)
-  const { data, error } = await client()
-    .storage.from(bucket)
-    .upload(storageKey, attachment.file)
-  if (error) {
-    console.error('[WHAPPI] uploadAttachment error:', JSON.stringify(error, null, 2))
-    console.error('[WHAPPI] upload details:', { bucket, storageKey, fileType: attachment.file.type, fileSize: attachment.file.size })
-  }
-  throwIfError(error, 'Upload failed')
-  if (!data) throw new Error('Upload returned no file metadata')
-  onProgress(78)
+  
+  const uploadUrl = await chatActions.getPresignedUploadUrl(bucket, storageKey, attachment.file.type);
+  if (!uploadUrl) throw new Error('Could not get upload url');
+  
+  await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl, true);
+      xhr.setRequestHeader("Content-Type", attachment.file.type);
+      xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+              const p = Math.round((e.loaded / e.total) * 100);
+              onProgress(Math.min(p, 90));
+          }
+      };
+      xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(null);
+          } else {
+              reject(new Error("Upload failed"));
+          }
+      };
+      xhr.onerror = () => reject(new Error("Upload failed"));
+      xhr.send(attachment.file);
+  });
+  
+  const url = `https://${process.env.NEXT_PUBLIC_S3_BUCKET_NAME || bucket}.s3.amazonaws.com/${storageKey}`;
+  
+  onProgress(100)
   return {
     bucket,
-    storage_key: data.key,
-    url: data.url,
-    original_name:
-      attachment.file.name ||
-      (kind === 'voice' ? 'voice-note.webm' : 'attachment'),
+    storage_key: storageKey,
+    url,
+    original_name: attachment.file.name || (kind === 'voice' ? 'voice-note.webm' : 'attachment'),
     mime_type: attachment.file.type,
     size_bytes: attachment.file.size,
     duration_seconds: attachment.durationSeconds ?? null,
@@ -260,27 +145,19 @@ export async function removeOrphanAttachment(
   bucket: string,
   storageKey: string,
 ): Promise<void> {
-  await client().storage.from(bucket).remove(storageKey)
+  await chatActions.deleteS3Object(bucket, storageKey);
 }
 
 export async function downloadAttachment(
   attachment: Attachment,
 ): Promise<Blob> {
-  const { data, error } = await client()
-    .storage.from(attachment.bucket)
-    .download(attachment.storage_key)
-  throwIfError(error, 'Download failed')
-  if (!data) throw new Error('Download returned no data')
-  return data
+  const res = await fetch(attachment.url);
+  if (!res.ok) throw new Error('Download failed');
+  return res.blob();
 }
 
 export async function markViewed(conversationId: string, ids: string[]) {
-  if (!ids.length) return
-  const { error } = await client().database.rpc('mark_messages_viewed', {
-    p_conversation_id: conversationId,
-    p_message_ids: ids,
-  })
-  throwIfError(error, 'Could not update read receipts')
+  return chatActions.markMessagesViewed(conversationId, ids);
 }
 
 export async function updateRetention(
@@ -288,28 +165,17 @@ export async function updateRetention(
   mode: RetentionMode,
   customSeconds: number | null,
 ) {
-  const { error } = await client().database.rpc('change_retention', {
-    p_conversation_id: conversationId,
-    p_mode: mode,
-    p_custom_seconds: customSeconds,
-  })
-  throwIfError(error, 'Could not update disappearing messages')
+  return chatActions.changeRetention(conversationId, mode, customSeconds);
 }
 
 export async function clearConversation(conversationId: string) {
   const validConversationId = recordIdSchema.parse(conversationId)
-  const { error } = await client().database.rpc('clear_chat', {
-    p_conversation_id: validConversationId,
-  })
-  throwIfError(error, 'Could not clear chat')
+  return chatActions.clearConversation(validConversationId);
 }
 
 export async function deleteOwnMessage(messageId: string) {
   const validMessageId = recordIdSchema.parse(messageId)
-  const { error } = await client().database.rpc('delete_own_message', {
-    p_message_id: validMessageId,
-  })
-  throwIfError(error, 'Message could not be deleted')
+  return chatActions.deleteOwnMessage(validMessageId);
 }
 
 export function classifyText(

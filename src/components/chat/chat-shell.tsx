@@ -26,7 +26,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { logout } from '@/app/login/actions'
 import { loadSocialState } from '@/lib/chat-api'
-import { getInsForgeBrowserClient } from '@/lib/insforge/client'
+
 import { formatTime } from '@/lib/utils'
 import type {
   Conversation,
@@ -81,33 +81,15 @@ export function ChatShell({ initialProfile }: { initialProfile: Profile }) {
       window.removeEventListener('offline', sync)
     }
   }, [])
+  // Use polling since we migrated away from InsForge Realtime
   useEffect(() => {
-    const insforge = getInsForgeBrowserClient()
-    const channel = `user:${profile.id}`
-    const handler = (payload: { meta?: { channel?: string } }) => {
-      if (payload.meta?.channel === channel) void refresh()
-    }
-    for (const event of [
-      'friend_request_changed',
-      'friendship_added',
-      'friendship_removed',
-      'chat_cleared',
-    ])
-      insforge.realtime.on(event, handler)
-    void insforge.realtime
-      .connect()
-      .then(() => insforge.realtime.subscribe(channel))
-    return () => {
-      for (const event of [
-        'friend_request_changed',
-        'friendship_added',
-        'friendship_removed',
-        'chat_cleared',
-      ])
-        insforge.realtime.off(event, handler)
-      insforge.realtime.unsubscribe(channel)
-    }
-  }, [profile.id, refresh])
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refresh()
+      }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [refresh])
 
   const profileById = useMemo(
     () => new Map(profiles.map((item) => [item.id, item])),
