@@ -195,6 +195,14 @@ export async function sendMessage(payload: SendPayload): Promise<Message> {
       p_attachment: payload.attachment ?? null,
     })
     .single()
+  if (error) {
+    console.error('[WHAPPI] sendMessage error:', JSON.stringify(error, null, 2))
+    console.error('[WHAPPI] sendMessage payload:', JSON.stringify({
+      conversationId: payload.conversationId,
+      messageId: payload.messageId,
+      type: payload.type,
+    }))
+  }
   throwIfError(error, 'Message could not be sent')
   return {
     ...(data as Message),
@@ -226,6 +234,10 @@ export async function uploadAttachment(
   const { data, error } = await client()
     .storage.from(bucket)
     .upload(storageKey, attachment.file)
+  if (error) {
+    console.error('[WHAPPI] uploadAttachment error:', JSON.stringify(error, null, 2))
+    console.error('[WHAPPI] upload details:', { bucket, storageKey, fileType: attachment.file.type, fileSize: attachment.file.size })
+  }
   throwIfError(error, 'Upload failed')
   if (!data) throw new Error('Upload returned no file metadata')
   onProgress(78)
