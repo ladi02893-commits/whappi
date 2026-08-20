@@ -1,0 +1,101 @@
+@import 'maplibre-gl/dist/maplibre-gl.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-body:
+      Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+      'Segoe UI', sans-serif;
+    --font-display:
+      'Avenir Next', 'Segoe UI Variable Display', ui-sans-serif, system-ui,
+      sans-serif;
+    --background: 210 30% 98%;
+    --foreground: 222 38% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 38% 13%;
+    --primary: 252 72% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 216 33% 93%;
+    --secondary-foreground: 222 32% 19%;
+    --muted: 216 28% 94%;
+    --muted-foreground: 217 14% 45%;
+    --accent: 252 75% 94%;
+    --accent-foreground: 252 60% 38%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 216 24% 87%;
+    --input: 216 24% 84%;
+    --ring: 252 72% 58%;
+  }
+
+  .dark {
+    --background: 224 32% 9%;
+    --foreground: 216 25% 94%;
+    --card: 224 29% 12%;
+    --card-foreground: 216 25% 94%;
+    --primary: 252 80% 70%;
+    --primary-foreground: 250 42% 12%;
+    --secondary: 222 24% 19%;
+    --secondary-foreground: 216 25% 94%;
+    --muted: 222 24% 17%;
+    --muted-foreground: 216 15% 66%;
+    --accent: 250 28% 23%;
+    --accent-foreground: 252 90% 83%;
+    --destructive: 0 63% 46%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 20% 22%;
+    --input: 222 20% 26%;
+    --ring: 252 80% 70%;
+  }
+
+  * {
+    @apply border-border;
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+}
+
+@layer utilities {
+  .safe-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+  .safe-top {
+    padding-top: max(0px, env(safe-area-inset-top));
+  }
+  .chat-grid {
+    background-color: hsl(var(--muted) / 0.42);
+    background-image: radial-gradient(
+      hsl(var(--foreground) / 0.045) 0.75px,
+      transparent 0.75px
+    );
+    background-size: 18px 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

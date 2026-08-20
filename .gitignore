@@ -1,0 +1,36 @@
+
+# InsForge & AI agent skills
+.insforge
+.agent
+.agents
+.augment
+.claude
+.cline
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+.roo
+.trae
+.windsurf
+
+# Environment and local secrets
+.env
+.env.local
+.env*.local
+
+# Next.js / Node
+node_modules/
+.next/
+out/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+npm-debug.log*
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
