@@ -1,4 +1,4 @@
-DROP FUNCTION public.prepare_expired_cleanup(integer);
+DROP FUNCTION IF EXISTS public.prepare_expired_cleanup(integer);
 
 CREATE OR REPLACE FUNCTION public.prepare_expired_cleanup(p_batch_size integer DEFAULT 100)
 RETURNS TABLE (

@@ -1,4 +1,4 @@
-DROP FUNCTION public.mark_messages_viewed(uuid, uuid[]);
+DROP FUNCTION IF EXISTS public.mark_messages_viewed(uuid, uuid[]);
 
 CREATE OR REPLACE FUNCTION public.mark_messages_viewed(p_conversation_id uuid, p_message_ids uuid[])
 RETURNS TABLE (out_message_id uuid, out_viewed_at timestamptz, out_expires_at timestamptz)
