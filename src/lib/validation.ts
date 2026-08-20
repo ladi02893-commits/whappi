@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { generateId } from '@/lib/utils'
 import {
   CUSTOM_RETENTION_MAX_SECONDS,
   CUSTOM_RETENTION_MIN_SECONDS,
@@ -151,5 +152,5 @@ export function randomStorageName(file: File): string {
     : undefined
   const safeExtension =
     extension && /^[a-z0-9]{1,10}$/.test(extension) ? `.${extension}` : ''
-  return `${crypto.randomUUID()}${safeExtension}`
+  return `${generateId()}${safeExtension}`
 }

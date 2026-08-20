@@ -40,7 +40,7 @@ import {
   uploadAttachment,
 } from '@/lib/chat-api'
 import { getInsForgeBrowserClient } from '@/lib/insforge/client'
-import { formatTime, safeExternalUrl } from '@/lib/utils'
+import { formatTime, safeExternalUrl, generateId } from '@/lib/utils'
 import type {
   Conversation,
   Message,
@@ -258,7 +258,7 @@ export function ConversationPanel({
   })
 
   const sendText = async (value: string, reuseId?: string) => {
-    const id = reuseId ?? crypto.randomUUID()
+    const id = reuseId ?? generateId()
     const classified = classifyText(value)
     if (!reuseId) {
       retries.current.set(id, { type: 'text', text: value })
@@ -302,7 +302,7 @@ export function ConversationPanel({
     location: { latitude: number; longitude: number; label?: string },
     reuseId?: string,
   ) => {
-    const id = reuseId ?? crypto.randomUUID()
+    const id = reuseId ?? generateId()
     if (!reuseId) {
       retries.current.set(id, { type: 'location', ...location })
       addOptimistic({
@@ -338,7 +338,7 @@ export function ConversationPanel({
   }
 
   const sendAttachment = async (attachment: PendingAttachment) => {
-    const id = crypto.randomUUID()
+    const id = generateId()
     addOptimistic({
       ...optimisticBase(id, attachment.kind),
       text_content: attachment.file.name,

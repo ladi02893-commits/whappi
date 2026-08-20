@@ -6,6 +6,7 @@ import {
   validateFile,
   type FileKind,
 } from '@/lib/validation'
+import { generateId } from '@/lib/utils'
 import type {
   Attachment,
   Conversation,
@@ -201,7 +202,7 @@ export async function sendMessage(payload: SendPayload): Promise<Message> {
       ? [
           {
             ...payload.attachment,
-            id: crypto.randomUUID(),
+            id: generateId(),
             message_id: payload.messageId,
             created_at: new Date().toISOString(),
           },
